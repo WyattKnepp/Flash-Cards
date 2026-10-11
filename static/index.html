@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flashcards</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="setup-screen" class="screen">
+    <h1>Flashcards</h1>
+
+    <div class="field">
+      <label for="deck-select">Deck</label>
+      <select id="deck-select"></select>
+    </div>
+
+    <div class="field">
+      <label>Mode</label>
+      <div class="mode-options">
+        <label class="mode-option">
+          <input type="radio" name="mode" value="standard" checked>
+          <span>
+            <strong>Standard</strong>
+            <small>Browse freely — flip and move back and forth.</small>
+          </span>
+        </label>
+        <label class="mode-option">
+          <input type="radio" name="mode" value="study">
+          <span>
+            <strong>Study</strong>
+            <small>Mark pass/fail. Passed cards drop out; failed cards repeat until you clear the deck.</small>
+          </span>
+        </label>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="timer-toggle">
+        <input type="checkbox" id="timer-enabled">
+        <span>Auto-flip timer</span>
+      </label>
+      <div class="timer-input-row">
+        <input type="number" id="timer-seconds" min="1" max="600" value="10" disabled>
+        <span>seconds</span>
+      </div>
+    </div>
+
+    <button id="start-btn">Start</button>
+    <p id="setup-error" class="error"></p>
+  </div>
+
+  <div id="session-screen" class="screen hidden">
+    <div class="session-header">
+      <button id="back-btn" class="link-btn">&larr; Decks</button>
+      <div id="progress" class="progress"></div>
+    </div>
+
+    <div id="card" class="card">
+      <div class="card-inner">
+        <div class="card-face card-front"></div>
+        <div class="card-face card-back"></div>
+      </div>
+    </div>
+
+    <div id="timer-indicator" class="timer-indicator"></div>
+
+    <div id="hints" class="hints"></div>
+
+    <div id="round-summary" class="complete hidden">
+      <h2 id="round-summary-title"></h2>
+      <p id="round-summary-detail"></p>
+      <p class="continue-hint">space to move on</p>
+    </div>
+
+    <div id="complete" class="complete hidden">
+      <h2>Deck complete 🎉</h2>
+      <p>Every card was answered correctly.</p>
+      <button id="restart-btn">Study again</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
