@@ -26,5 +26,7 @@ Add, edit, or remove `.txt` files in `decks/` and they'll show up in the deck dr
 
 ## Modes
 
-- **Standard** — browse freely. Left arrow = previous card, right arrow = next card, spacebar = flip.
-- **Study** — left arrow = fail, right arrow = success, spacebar = flip. Cards you get right drop out of the deck; cards you miss stay in and the remaining pile is reshuffled each round. The session ends when every card has been answered correctly at least once (in its most recent round).
+- **Standard** — browse freely. Left arrow (or swipe left) = previous card, right arrow (or swipe right) = next card, spacebar (or tap the card) = flip.
+- **Study** — left arrow (or swipe left) = fail, right arrow (or swipe right) = success, spacebar (or tap the card) = flip. Cards you get right drop out of the deck; cards you miss stay in and the remaining pile is reshuffled each round. The session ends when every card has been answered correctly at least once (in its most recent round).
+
+Swiping and tapping work on touch screens only. A short or slow drag springs the card back and does nothing.

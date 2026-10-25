@@ -213,6 +213,25 @@ function studyAnswer(success) {
   }
 }
 
+// Left/right actions, shared by the arrow keys and swipe gestures.
+function goLeft() {
+  if (session.mode === "standard") standardPrev();
+  else studyAnswer(false);
+}
+
+function goRight() {
+  if (session.mode === "standard") standardNext();
+  else studyAnswer(true);
+}
+
+// Whether goLeft (dir < 0) or goRight (dir > 0) would do anything right now,
+// so a swipe the matching key would ignore springs back instead of flying off.
+function canGo(dir) {
+  if (!session || session.awaitingRoundAck) return false;
+  if (session.mode === "study") return true;
+  return dir < 0 ? session.index > 0 : session.index < session.cards.length - 1;
+}
+
 document.addEventListener("keydown", (e) => {
   if (!session) return;
   if (!completeEl.classList.contains("hidden")) return;
@@ -233,19 +252,110 @@ document.addEventListener("keydown", (e) => {
   }
   if (e.code === "ArrowLeft") {
     e.preventDefault();
-    if (session.mode === "standard") standardPrev();
-    else studyAnswer(false);
+    goLeft();
     return;
   }
   if (e.code === "ArrowRight") {
     e.preventDefault();
-    if (session.mode === "standard") standardNext();
-    else studyAnswer(true);
+    goRight();
     return;
   }
 });
 
-cardEl.addEventListener("click", flip);
+cardEl.addEventListener("click", () => {
+  // Touch taps are handled by the swipe code below; skip the click that follows them.
+  if (swipeAnimating || performance.now() < ignoreClickUntil) return;
+  flip();
+});
+
+// Touch swipe gestures: drag the card left/right to do what the arrow keys do.
+// Mouse and pen input are ignored; taps flip the card like spacebar.
+const SWIPE_DISTANCE_RATIO = 0.33; // fraction of the card's width
+const SWIPE_VELOCITY = 0.5; // px/ms
+const TAP_SLOP = 10; // px of movement before a touch stops being a tap
+const FLY_MS = 250;
+const SPRING_MS = 200;
+
+let swipe = null; // the touch gesture in progress, if any
+let swipeAnimating = false;
+let ignoreClickUntil = 0;
+
+function setCardOffset(dx, ms) {
+  cardEl.style.transition = ms ? `transform ${ms}ms ease-out` : "none";
+  cardEl.style.transform = dx ? `translateX(${dx}px) rotate(${dx * 0.04}deg)` : "";
+}
+
+function flyOff(dir) {
+  swipeAnimating = true;
+  const s = session;
+  setCardOffset(dir * (window.innerWidth + cardEl.offsetWidth), FLY_MS);
+  setTimeout(() => {
+    setCardOffset(0, 0);
+    swipeAnimating = false;
+    if (session !== s) return; // left the session mid-animation
+    if (dir < 0) goLeft();
+    else goRight();
+  }, FLY_MS);
+}
+
+cardEl.addEventListener("pointerdown", (e) => {
+  if (e.pointerType !== "touch" || !session || swipe || swipeAnimating) return;
+  swipe = {
+    id: e.pointerId,
+    x0: e.clientX,
+    y0: e.clientY,
+    axis: null, // "x" once it's a horizontal drag, "y" once it's a vertical one
+    samples: [{ x: e.clientX, t: e.timeStamp }],
+  };
+});
+
+cardEl.addEventListener("pointermove", (e) => {
+  if (!swipe || e.pointerId !== swipe.id) return;
+  const dx = e.clientX - swipe.x0;
+  const dy = e.clientY - swipe.y0;
+  if (!swipe.axis) {
+    if (Math.hypot(dx, dy) < TAP_SLOP) return;
+    swipe.axis = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+    if (swipe.axis === "x") cardEl.setPointerCapture(e.pointerId);
+  }
+  if (swipe.axis !== "x") return;
+  swipe.samples.push({ x: e.clientX, t: e.timeStamp });
+  while (swipe.samples.length > 2 && e.timeStamp - swipe.samples[0].t > 100) {
+    swipe.samples.shift();
+  }
+  setCardOffset(dx, 0);
+});
+
+cardEl.addEventListener("pointerup", (e) => {
+  if (!swipe || e.pointerId !== swipe.id) return;
+  const s = swipe;
+  swipe = null;
+  ignoreClickUntil = performance.now() + 500;
+
+  if (!s.axis) {
+    flip();
+    return;
+  }
+  if (s.axis !== "x") return;
+
+  const dx = e.clientX - s.x0;
+  const first = s.samples[0];
+  const dt = e.timeStamp - first.t;
+  const velocity = dt > 0 ? (e.clientX - first.x) / dt : 0;
+  const dir = Math.sign(dx);
+  const far = Math.abs(dx) > cardEl.offsetWidth * SWIPE_DISTANCE_RATIO;
+  const fast = Math.abs(velocity) > SWIPE_VELOCITY && Math.sign(velocity) === dir;
+
+  if (dir !== 0 && (far || fast) && canGo(dir)) flyOff(dir);
+  else setCardOffset(0, SPRING_MS);
+});
+
+cardEl.addEventListener("pointercancel", (e) => {
+  if (!swipe || e.pointerId !== swipe.id) return;
+  if (swipe.axis === "x") setCardOffset(0, SPRING_MS);
+  swipe = null;
+  ignoreClickUntil = performance.now() + 500;
+});
 
 startBtn.addEventListener("click", async () => {
   setupError.textContent = "";
