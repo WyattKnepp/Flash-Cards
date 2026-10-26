@@ -8,13 +8,14 @@ Decks live as *.json files in the decks/ directory, each a JSON array of
 {"front": "...", "back": "..."} objects.
 """
 import json
+import os
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote
 
 ROOT = Path(__file__).resolve().parent
-DECKS_DIR = ROOT / "decks"
+DECKS_DIR = Path(os.environ.get("DECKS_DIR", ROOT / "decks"))
 STATIC_DIR = ROOT / "static"
 
 CONTENT_TYPES = {
