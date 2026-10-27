@@ -10,7 +10,10 @@ class ClassList {
   add(c) { this.set.add(c); }
   remove(c) { this.set.delete(c); }
   contains(c) { return this.set.has(c); }
-  toggle(c) { if (this.set.has(c)) this.set.delete(c); else this.set.add(c); }
+  toggle(c, force) {
+    const on = force === undefined ? !this.set.has(c) : Boolean(force);
+    if (on) this.set.add(c); else this.set.delete(c);
+  }
 }
 
 class FakeElement {
@@ -48,6 +51,7 @@ class FakeElement {
     return Promise.all((this.listeners[type] || []).map((fn) => fn(e)));
   }
   setPointerCapture() {}
+  blur() { this.blurred = true; }
 }
 
 function seededRandom(seed) {
@@ -100,10 +104,12 @@ async function until(cond, what = 'condition', timeoutMs = 5000) {
 const IDS = [
   'setup-screen', 'session-screen', 'deck-select', 'start-btn', 'setup-error', 'back-btn',
   'progress', 'card', 'hints', 'complete', 'restart-btn', 'round-summary',
-  'round-summary-title', 'round-summary-detail', 'timer-enabled', 'timer-seconds', 'timer-indicator',
+  'round-summary-title', 'round-summary-detail', 'continue-btn', 'continue-hint',
+  'timer-enabled', 'timer-seconds', 'timer-indicator',
 ];
 
-async function loadApp(base, { seed = 1 } = {}) {
+// touch: true makes matchMedia('(pointer: coarse)') match, like a phone.
+async function loadApp(base, { seed = 1, touch = false } = {}) {
   const els = {};
   for (const id of IDS) els[id] = new FakeElement(id === 'deck-select' ? 'select' : 'div', { id });
   els['session-screen'].classList.add('hidden');
@@ -129,7 +135,7 @@ async function loadApp(base, { seed = 1 } = {}) {
   const clock = makeClock();
   const context = vm.createContext({
     document,
-    window: { innerWidth: 1000 },
+    window: { innerWidth: 1000, matchMedia: (q) => ({ matches: touch && q === '(pointer: coarse)' }) },
     performance: { now: clock.now },
     fetch: (url, opts) => fetch(new URL(url, base), opts),
     setTimeout: clock.setTimeout,

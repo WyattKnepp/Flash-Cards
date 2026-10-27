@@ -218,6 +218,84 @@ describe('ui: study mode', () => {
   });
 });
 
+describe('ui: continue button and touch prompts', () => {
+  // Finish round 1 of the "two" deck with one miss so the round summary shows.
+  async function toRoundSummary(app) {
+    await app.start('two', 'study');
+    await app.key('ArrowLeft');
+    await app.key('ArrowRight');
+    assert.equal(app.els['round-summary'].classList.contains('hidden'), false);
+  }
+
+  test('the Continue button starts the next round like space does', async () => {
+    const app = await loadApp(server.base);
+    await toRoundSummary(app);
+    await app.els['continue-btn'].dispatch('click');
+    assert.equal(app.els['round-summary'].classList.contains('hidden'), true);
+    assert.equal(app.progress(), 'Round 2 · Card 1 of 1 · 1 left overall');
+  });
+
+  test('space then a click on Continue only advances one round', async () => {
+    const app = await loadApp(server.base);
+    await toRoundSummary(app);
+    await app.key('Space');
+    await app.els['continue-btn'].dispatch('click');
+    assert.equal(app.progress(), 'Round 2 · Card 1 of 1 · 1 left overall');
+  });
+
+  test('clicking Continue blurs it so a later space press is not a second click', async () => {
+    const app = await loadApp(server.base);
+    await toRoundSummary(app);
+    await app.els['continue-btn'].dispatch('click');
+    assert.equal(app.els['continue-btn'].blurred, true);
+  });
+
+  test('on desktop the summary says to press space and hints mention space', async () => {
+    const app = await loadApp(server.base);
+    await app.start('two', 'study');
+    assert.match(app.els.hints.innerHTML, /space to flip/);
+    await app.key('ArrowLeft');
+    await app.key('ArrowRight');
+    assert.equal(app.els['continue-hint'].classList.contains('hidden'), false);
+  });
+
+  test('on a touch device no prompt mentions a key', async () => {
+    const app = await loadApp(server.base, { touch: true });
+    await app.start('three', 'standard');
+    assert.doesNotMatch(app.els.hints.innerHTML, /space|arrow|key|press/i);
+    assert.match(app.els.hints.innerHTML, /tap to flip/);
+    await app.els['back-btn'].dispatch('click');
+
+    await app.start('two', 'study');
+    assert.doesNotMatch(app.els.hints.innerHTML, /space|arrow|key|press/i);
+    assert.match(app.els.hints.innerHTML, /swipe: fail/);
+    await app.swipe(-200);
+    app.clock.advance(250);
+    await app.swipe(200);
+    app.clock.advance(250);
+    assert.equal(app.els['continue-hint'].classList.contains('hidden'), true);
+  });
+
+  test('a full study session runs to the end and restarts with only taps and swipes', async () => {
+    const app = await loadApp(server.base, { touch: true });
+    await app.start('two', 'study');
+    await app.swipe(0, 50); // tap to flip
+    assert.equal(app.flipped(), true);
+    await app.swipe(-200);
+    app.clock.advance(250);
+    await app.swipe(200);
+    app.clock.advance(250);
+    await app.els['continue-btn'].dispatch('click');
+    assert.equal(app.progress(), 'Round 2 · Card 1 of 1 · 1 left overall');
+    await app.swipe(200);
+    app.clock.advance(250);
+    assert.equal(app.els.complete.classList.contains('hidden'), false);
+    await app.els['restart-btn'].dispatch('click');
+    await until(() => app.els.complete.classList.contains('hidden'), 'restart');
+    assert.equal(app.progress(), 'Round 1 · Card 1 of 2 · 2 left overall');
+  });
+});
+
 describe('ui: auto-flip timer', () => {
   test('flips the card after the chosen number of seconds with a countdown', async () => {
     const app = await loadApp(server.base);

@@ -14,6 +14,8 @@ const restartBtn = document.getElementById("restart-btn");
 const roundSummaryEl = document.getElementById("round-summary");
 const roundSummaryTitle = document.getElementById("round-summary-title");
 const roundSummaryDetail = document.getElementById("round-summary-detail");
+const continueBtn = document.getElementById("continue-btn");
+const continueHint = document.getElementById("continue-hint");
 const timerEnabledCheckbox = document.getElementById("timer-enabled");
 const timerSecondsInput = document.getElementById("timer-seconds");
 const timerIndicator = document.getElementById("timer-indicator");
@@ -115,6 +117,11 @@ function showSession() {
   cardEl.classList.remove("hidden");
 }
 
+// Phones and tablets: hide keyboard instructions and describe taps and swipes instead.
+function isTouchDevice() {
+  return Boolean(window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+}
+
 function renderCard() {
   const card = session.mode === "standard"
     ? session.cards[session.index]
@@ -130,15 +137,19 @@ function renderCard() {
   void cardInner.offsetWidth;
   cardInner.classList.remove("no-anim");
 
+  const touch = isTouchDevice();
+  const swipeWord = touch ? "swipe: " : "";
+  const flipHint = touch ? "tap to flip" : "space to flip";
   if (session.mode === "standard") {
     progressEl.textContent = `Card ${session.index + 1} of ${session.cards.length}`;
-    hintsEl.innerHTML = `<span>&larr; previous</span><span>space to flip</span><span>next &rarr;</span>`;
+    hintsEl.innerHTML =
+      `<span>&larr; ${swipeWord}previous</span><span>${flipHint}</span><span>${swipeWord}next &rarr;</span>`;
   } else {
     const remainingTotal = session.queue.length - session.index + session.failedThisRound.length;
     progressEl.textContent =
       `Round ${session.round} · Card ${session.index + 1} of ${session.queue.length} · ${remainingTotal} left overall`;
     hintsEl.innerHTML =
-      `<span class="fail-hint">&larr; fail</span><span>space to flip</span><span class="success-hint">success &rarr;</span>`;
+      `<span class="fail-hint">&larr; ${swipeWord}fail</span><span>${flipHint}</span><span class="success-hint">${swipeWord}success &rarr;</span>`;
   }
 
   scheduleAutoFlip();
@@ -208,9 +219,18 @@ function studyAnswer(success) {
   } else {
     roundSummaryTitle.textContent = `Round ${session.round} complete`;
     roundSummaryDetail.textContent = `${right} right, ${wrong} wrong`;
+    continueHint.classList.toggle("hidden", isTouchDevice());
     roundSummaryEl.classList.remove("hidden");
     session.awaitingRoundAck = { nextPool: session.failedThisRound, nextRound: session.round + 1 };
   }
+}
+
+// Start the next round from the round summary (spacebar or the Continue button).
+// A no-op once the next round has started, so one press can't skip a round.
+function continueRound() {
+  if (!session || !session.awaitingRoundAck) return;
+  const { nextPool, nextRound } = session.awaitingRoundAck;
+  startStudyRound(nextPool, nextRound);
 }
 
 // Left/right actions, shared by the arrow keys and swipe gestures.
@@ -238,9 +258,9 @@ document.addEventListener("keydown", (e) => {
 
   if (session.awaitingRoundAck) {
     if (e.code === "Space") {
+      // preventDefault also stops a focused Continue button from clicking itself on keyup.
       e.preventDefault();
-      const { nextPool, nextRound } = session.awaitingRoundAck;
-      startStudyRound(nextPool, nextRound);
+      continueRound();
     }
     return;
   }
@@ -382,6 +402,10 @@ startBtn.addEventListener("click", async () => {
 });
 
 backBtn.addEventListener("click", showSetup);
+continueBtn.addEventListener("click", () => {
+  continueBtn.blur(); // so a later spacebar press goes to the global handler, not this button
+  continueRound();
+});
 restartBtn.addEventListener("click", () => {
   const deckName = deckSelect.value;
   loadDeck(deckName).then((deck) => startStudyRound(deck.cards, 1));

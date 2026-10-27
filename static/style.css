@@ -215,6 +215,6 @@ button:hover { opacity: 0.92; }
   border: 1px solid var(--border);
 }
 
-.complete button { margin-top: 12px; }
+.complete button { margin-top: 12px; min-height: 44px; }
 
 .continue-hint { color: var(--muted); font-size: 14px; margin-top: 12px; margin-bottom: 0; }
